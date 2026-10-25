@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Der Schatten im Archiv: Das Luxa-Protokoll</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            noir: {
+              900: '#070a10',
+              800: '#0f172a',
+              700: '#1e293b',
+              600: '#334155',
+            },
+            luxaUv: '#a855f7',
+            luxaBright: '#fbbf24',
+            luxaNormal: '#38bdf8',
+            emeraldGlow: '#10b981'
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #070a10; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    
+    .uv-glow {
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.35);
+      border-color: rgba(168, 85, 247, 0.6);
+    }
+    
+    .bright-glow {
+      box-shadow: 0 0 20px rgba(251, 191, 36, 0.35);
+      border-color: rgba(251, 191, 36, 0.6);
+    }
+
+    .scanline {
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 2px;
+      background: rgba(56, 189, 248, 0.25);
+      box-shadow: 0 0 8px #38bdf8;
+      animation: scan linear 8s infinite;
+      pointer-events: none;
+    }
+
+    @keyframes scan {
+      0% { transform: translateY(-100%); }
+      100% { transform: translateY(1000%); }
+    }
+  </style>
+</head>
+<body class="bg-noir-900 text-gray-100 font-sans min-h-screen flex flex-col justify-between selection:bg-luxaNormal selection:text-black">
+
+  <!-- TOP HEADER -->
+  <header class="bg-noir-800 border-b border-noir-700 px-4 py-3 sticky top-0 z-40 shadow-xl">
+    <div class="max-w-4xl mx-auto flex flex-wrap justify-between items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div id="luxaAppBadge" class="w-10 h-10 rounded-xl bg-slate-900 border border-luxaNormal/40 flex items-center justify-center text-luxaNormal shadow-md transition-all duration-300">
+          <i class="fa-solid fa-microscope text-xl" id="luxaHeaderIcon"></i>
+        </div>
+        <div>
+          <h1 class="text-base font-bold tracking-wide text-gray-100 flex items-center gap-2">
+            Das Luxa-Protokoll
+            <span class="text-[10px] font-mono bg-luxaNormal/10 text-luxaNormal border border-luxaNormal/30 px-2 py-0.5 rounded-full">30 Kapitel</span>
+          </h1>
+          <p class="text-xs text-gray-400 font-mono" id="headerChapterText">Entwickelt von Blankenhagen Spieleentwicklung</p>
+        </div>
+      </div>
+
+      <!-- Score & Controls -->
+      <div class="flex items-center gap-2">
+        <div class="px-3 py-1.5 rounded-lg bg-noir-900 border border-noir-700 text-xs font-mono text-amber-300 flex items-center gap-1.5" title="Gesamtpunktzahl">
+          <i class="fa-solid fa-star"></i>
+          <span id="totalScoreDisplay">0 Pkt</span>
+        </div>
+        <button onclick="toggleCamera()" id="camBtn" class="px-2.5 py-1.5 rounded-lg bg-noir-700 hover:bg-noir-600 border border-noir-600 text-xs font-mono text-gray-300 transition flex items-center gap-1.5" title="Kamera-Sensorsystem">
+          <i class="fa-solid fa-camera"></i>
+          <span class="hidden sm:inline">Kamera</span>
+        </button>
+        <button onclick="toggleChapterMenu()" class="px-3 py-1.5 rounded-lg bg-noir-700 hover:bg-noir-600 border border-noir-600 text-xs font-mono text-luxaNormal transition flex items-center gap-1.5">
+          <i class="fa-solid fa-list-ol"></i>
+          <span>Kapitel</span>
+        </button>
+        <button onclick="toggleRulesModal()" class="px-3 py-1.5 rounded-lg bg-noir-700 hover:bg-noir-600 border border-noir-600 text-xs font-mono text-luxaBright transition flex items-center gap-1.5">
+          <i class="fa-solid fa-book-open"></i>
+          <span class="hidden sm:inline">Regeln</span>
+        </button>
+        <button onclick="toggleImpressumModal()" class="px-2.5 py-1.5 rounded-lg bg-noir-700 hover:bg-noir-600 border border-noir-600 text-xs font-mono text-gray-300 transition" title="Impressum">
+          <i class="fa-solid fa-circle-info"></i>
+        </button>
+        <button onclick="toggleAudio()" class="p-2 rounded-lg bg-noir-700 hover:bg-noir-600 border border-noir-600 text-xs transition" title="Sound">
+          <i class="fa-solid fa-volume-high text-luxaNormal" id="audioIcon"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- LUXA SENSOR & LIGHT STATUS BAR -->
+  <section class="bg-noir-800/90 border-b border-noir-700 px-4 py-3">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div class="flex items-center gap-3 w-full sm:w-auto">
+        <span class="text-xs font-mono text-gray-400 uppercase tracking-wider">Luxa-Modus:</span>
+        <div id="luxaModeBadge" class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 border border-slate-600 text-cyan-400 flex items-center gap-1.5">
+          <i class="fa-solid fa-eye"></i>
+          <span id="luxaModeText">NORMAL (50 Lux)</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3 w-full sm:w-72">
+        <i class="fa-solid fa-moon text-xs text-luxaUv"></i>
+        <input type="range" id="luxaSlider" min="0" max="100" value="50" oninput="updateLuxFromSlider(this.value)" class="flex-1 h-2 bg-noir-900 rounded-lg appearance-none cursor-pointer accent-luxaNormal">
+        <i class="fa-solid fa-sun text-xs text-luxaBright"></i>
+        <span class="text-xs font-mono text-gray-300 w-12 text-right" id="luxValueDisplay">50 Lux</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- PROGRESS BAR -->
+  <section class="bg-noir-900 border-b border-noir-800 px-4 py-1.5">
+    <div class="max-w-4xl mx-auto flex items-center gap-3">
+      <div class="text-[11px] font-mono text-gray-400 whitespace-nowrap" id="progressPctText">0% Gelöst</div>
+      <div class="flex-1 bg-noir-800 h-2 rounded-full border border-noir-700 overflow-hidden">
+        <div id="progressBar" class="bg-gradient-to-r from-luxaUv via-luxaNormal to-emeraldGlow h-full transition-all duration-500" style="width: 3.33%;"></div>
+      </div>
+      <div class="text-[11px] font-mono text-luxaBright font-bold" id="chapterBadge">K1 / 30</div>
+    </div>
+  </section>
+
+  <!-- MAIN GAME AREA -->
+  <main class="max-w-3xl mx-auto w-full p-4 sm:p-6 flex-1 flex flex-col justify-center relative">
+    <div class="scanline"></div>
+
+    <div id="mainCard" class="bg-noir-800 border border-noir-700 rounded-2xl p-5 sm:p-8 shadow-2xl relative space-y-6 transition-all duration-500">
+
+      <!-- Chapter Header -->
+      <div class="border-l-4 border-luxaNormal pl-4 py-1 flex justify-between items-start">
+        <div>
+          <span class="text-xs font-mono text-luxaNormal uppercase tracking-wider font-bold" id="chapterCategory">ERMITTLUNG</span>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-100" id="chapterTitle">Kapitel 1: Der UV-Tintentest</h2>
+        </div>
+        <div class="text-right">
+          <span class="text-xs font-mono bg-noir-700 border border-noir-600 text-gray-300 px-2.5 py-1 rounded-lg block mb-1" id="difficultyTag">Sehr Leicht</span>
+          <span class="text-[11px] font-mono text-amber-300 font-bold" id="currentChapterScore">Kapitel-Wert: 100 Pkt</span>
+        </div>
+      </div>
+
+      <!-- Story Display -->
+      <div class="bg-noir-900/90 border border-noir-700 p-4 rounded-xl text-sm text-gray-300 leading-relaxed space-y-2 font-sans" id="storyBox"></div>
+
+      <!-- Light Requirement Notice -->
+      <div id="lightReqNotice" class="hidden bg-slate-900/80 border p-3 rounded-xl text-xs font-mono flex items-center gap-2">
+        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+        <span id="lightReqText">Luxa-Erfordernis: Schalte auf Schwarzlicht / Dunkelheit!</span>
+      </div>
+
+      <!-- Visual Inspection Area -->
+      <div id="visualInspectionArea" class="bg-noir-900 border border-noir-700 rounded-xl p-5 sm:p-6 text-center space-y-3 relative overflow-hidden transition-all duration-300">
+        <div class="text-[11px] font-mono text-gray-400 uppercase tracking-wider flex justify-between items-center">
+          <span>LUXA-SPEKTRAL-BEWEISSTÜCK</span>
+          <span id="inspectModeLabel" class="text-luxaNormal font-bold">NORMAL-LICHT</span>
+        </div>
+        <div class="text-lg sm:text-xl font-mono font-bold tracking-wider py-4 transition-all duration-300 min-h-[70px] flex items-center justify-center" id="puzzleDisplay"></div>
+      </div>
+
+      <!-- Interaction Form -->
+      <div class="space-y-3">
+        <label class="block text-xs font-mono text-gray-400 uppercase">Lösung / Freischaltcode eingeben:</label>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="text" id="userInput" placeholder="Lösung hier eingeben..." 
+                 onkeydown="if(event.key==='Enter') submitAnswer()"
+                 class="flex-1 bg-noir-900 border border-noir-600 rounded-xl px-4 py-3 font-mono text-luxaNormal font-bold text-base focus:outline-none focus:border-luxaNormal transition">
+          <button onclick="submitAnswer()" class="px-7 py-3 bg-luxaNormal hover:bg-sky-400 text-black font-bold text-sm rounded-xl transition shadow-[0_0_12px_rgba(56,189,248,0.3)] flex items-center justify-center gap-2">
+            <span>Bestätigen</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+
+        <!-- Feedback & Helpful Tip Controls -->
+        <div class="flex flex-wrap justify-between items-center pt-2 gap-2">
+          <button onclick="showHint()" class="px-3 py-1.5 rounded-lg bg-amber-950/60 border border-amber-500/40 text-xs font-mono text-amber-300 hover:bg-amber-900/60 transition flex items-center gap-1.5">
+            <i class="fa-solid fa-lightbulb"></i>
+            <span id="hintBtnText">Hilfreichen Tipp anfordern (-25 Pkt)</span>
+          </button>
+          <div id="feedbackText" class="text-xs font-mono font-bold hidden"></div>
+        </div>
+
+        <!-- Hint Content Box -->
+        <div id="hintBox" class="hidden bg-amber-950/40 border border-amber-500/30 p-3 rounded-xl text-xs font-mono text-amber-200"></div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Hidden Video / Canvas for Camera -->
+  <video id="webcamVideo" class="hidden" autoplay playsinline></video>
+  <canvas id="webcamCanvas" class="hidden" width="32" height="32"></canvas>
+
+  <!-- CHAPTER SELECTOR MODAL -->
+  <div id="chapterModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-noir-800 border border-noir-600 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh]">
+      <div class="flex justify-between items-center border-b border-noir-700 pb-3">
+        <h3 class="text-lg font-bold text-luxaNormal flex items-center gap-2">
+          <i class="fa-solid fa-map"></i> Akte: Das Luxa-Protokoll (30 Kapitel)
+        </h3>
+        <button onclick="toggleChapterMenu()" class="text-gray-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-5 sm:grid-cols-6 gap-2 overflow-y-auto pr-1 py-2" id="chapterGrid"></div>
+
+      <div class="pt-2 border-t border-noir-700 flex justify-between items-center text-xs text-gray-400 font-mono">
+        <span>Grün = Gelöst | Cyan = Aktuell</span>
+        <button onclick="toggleChapterMenu()" class="px-4 py-2 bg-noir-700 hover:bg-noir-600 text-gray-200 font-semibold rounded-lg">
+          Schließen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RULES MODAL -->
+  <div id="rulesModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-noir-800 border border-noir-600 rounded-2xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh]">
+      <div class="flex justify-between items-center border-b border-noir-700 pb-3">
+        <h3 class="text-lg font-bold text-luxaBright flex items-center gap-2">
+          <i class="fa-solid fa-book-open"></i> Spielregeln & Punktesystem
+        </h3>
+        <button onclick="toggleRulesModal()" class="text-gray-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+      <div class="text-sm text-gray-300 space-y-3 overflow-y-auto pr-1 font-sans">
+        <p><strong>1. Das Ziel:</strong> Löse alle 30 Kapitel des Detektivfalls durch cleveres Kombinieren.</p>
+        <p><strong>2. Das Punktesystem:</strong> Jedes Kapitel startet mit 100 Punkten. 
+          <br>• Jeder angeforderte Tipp kostet <strong>25 Punkte</strong>.
+          <br>• Jeder falsche Versuch kostet <strong>10 Punkte</strong>.
+          <br>Wer ohne Fehlversuche und Tipps durchkommt, maximiert seinen Highscore!</p>
+        <p><strong>3. Das Luxa-Lichtsystem:</strong> Nutze den Schieberegler oder die Gerätekamera, um Dunkelheit (UV-Schwarzlicht unter 30 Lux) oder grelles Licht (Überbelichtung über 70 Lux) einzustellen.</p>
+      </div>
+      <div class="pt-2 border-t border-noir-700 text-right">
+        <button onclick="toggleRulesModal()" class="px-4 py-2 bg-luxaBright text-black font-bold text-xs rounded-lg">
+          Verstanden
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPRESSUM MODAL -->
+  <div id="impressumModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-noir-800 border border-noir-600 rounded-2xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-4 max-h-[85vh]">
+      <div class="flex justify-between items-center border-b border-noir-700 pb-3">
+        <h3 class="text-lg font-bold text-gray-100 flex items-center gap-2">
+          <i class="fa-solid fa-circle-info"></i> Impressum
+        </h3>
+        <button onclick="toggleImpressumModal()" class="text-gray-400 hover:text-white transition">
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+      <div class="text-sm text-gray-300 space-y-2 font-mono">
+        <p><strong>Blankenhagen Spieleentwicklung</strong></p>
+        <p>Jörg Blankenhagen</p>
+        <p>Kanalstr. 31</p>
+        <p>73614 Schorndorf</p>
+        <p>E-Mail: <a href="mailto:spieleentwicklung@freenet.de" class="text-luxaNormal underline">spieleentwicklung@freenet.de</a></p>
+      </div>
+      <div class="pt-2 border-t border-noir-700 text-right">
+        <button onclick="toggleImpressumModal()" class="px-4 py-2 bg-noir-700 text-gray-200 font-semibold text-xs rounded-lg">
+          Schließen
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPLIANCE FOOTER -->
+  <footer class="bg-noir-900 border-t border-noir-800 py-3 px-4 text-center text-[11px] text-gray-500 font-sans">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+      <div>Entwickelt von Blankenhagen Spieleentwicklung | <button onclick="toggleImpressumModal()" class="underline hover:text-gray-400">Impressum</button></div>
+      <div class="italic">
+        Dieser Text/Dieses Bild/Dieses Video/… wurde unter Zuhilfenahme einer Künstlichen Intelligenz erstellt und von einem Menschen überprüft.
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    /* ==========================================
+        30 CHAPTER DATABASE (BALANCED & EASY TO DIGEST)
+        ========================================== */
+    const chapters = [
+      {
+        id: 1, title: "Der UV-Tintentest", category: "Luxa Intro", difficulty: "Sehr Leicht", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Willkommen bei der Soko Lux! Schalte den Luxa-Scanner auf <strong>Dunkelheit / UV-Schwarzlicht (unter 30 Lux)</strong>, um die Zahlenreihe zu sehen!'",
+        puzzleNormal: "░░░ UV-LICHT BENÖTIGT (Regler nach links schieben!) ░░░",
+        puzzleLightMatch: "Reihe: 5 - 10 - 15 - 20 - ?",
+        answers: ["25"],
+        hint: "Die Reihe steigt immer um exakt +5 an. Nach 20 kommt..."
+      },
+      {
+        id: 2, title: "Das Überbelichtete Foto", category: "Belichtung", difficulty: "Sehr Leicht",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Hier ist ein dunkles Polaroid-Foto vom Tatort. Schalte den Luxa-Scanner auf <strong>Helligkeit (über 70 Lux)</strong>, um es zu durchleuchten!'",
+        puzzleNormal: "██ POLAROID DUNKEL (Stelle Luxa auf über 70 Lux!) ██",
+        puzzleLightMatch: "Foto-Code: 100 - 15 = ?",
+        answers: ["85"],
+        hint: "Erhöhe die Helligkeit auf über 70 Lux. Rechne 100 minus 15."
+      },
+      {
+        id: 3, title: "Geheime Buchstaben", category: "Cäsar-Code", difficulty: "Leicht", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Im UV-Licht (< 30 Lux) erscheint ein verschobener Cäsar-Code. Jeder Buchstabe wurde 1 Schritt vorgerückt: C - M - C - G.'",
+        puzzleNormal: "░░ SCHWARZLICHT NÖTIG ░░",
+        puzzleLightMatch: "Geheimtext: C - M - C - G  (Gehe 1 Schritt zurück!)",
+        answers: ["BLBF"],
+        hint: "Gehe bei jedem Buchstaben im Alphabet einen Schritt zurück (C wird zu B, M wird zu L usw.)."
+      },
+      {
+        id: 4, title: "Der Tageslicht-Tresor", category: "Normal-Licht", difficulty: "Leicht",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Das optische Schloss benötigt Standard-Licht (30 bis 70 Lux). Löse die Buchstabensequenz.'",
+        puzzleNormal: "A - B - D - G - K - ?",
+        puzzleLightMatch: "A - B - D - G - K - ?",
+        answers: ["P"],
+        hint: "Die Abstände wachsen bei jedem Schritt um +1 (+1, +2, +3, +4, +5). Nach K kommt P."
+      },
+      {
+        id: 5, title: "Das Luxa-Worträtsel", category: "Anagramm & UV", difficulty: "Leicht", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Im UV-Licht (< 30 Lux) schimmern die Buchstaben L - U - X - A. Wie lautet das kurze Wort für Licht?'",
+        puzzleNormal: "░░ SCHWENKE AUF UV-SCHWARZLICHT ░░",
+        puzzleLightMatch: "Anagramm: L U X A  => Wort für Licht?",
+        answers: ["LUX", "LUXA"],
+        hint: "Es sind nur drei Buchstaben und es steht direkt im Titel des Spiels!"
+      },
+      {
+        id: 6, title: "Der Stufen-Schlüssel", category: "Zahlenfolge", difficulty: "Leicht",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Ein Tresorcode: 50, 45, 40, 35. Welches ist die nächste Zahl?'",
+        puzzleNormal: "50 - 45 - 40 - 35 - ?",
+        puzzleLightMatch: "50 - 45 - 40 - 35 - ?",
+        answers: ["30"],
+        hint: "Es wird in Fünferschritte heruntergezählt."
+      },
+      {
+        id: 7, title: "Das Sonnen-Symbol", category: "Belichtung", difficulty: "Leicht", requiredLight: "BRIGHT",
+        story: "<strong class='text-luxaBright'>Bergmann:</strong> 'Diese Linse reagiert nur auf starkes Licht (> 70 Lux). Erhelle den Scanner!'",
+        puzzleNormal: "██ LINSE BLOCKIERT (Erhöhe Luxa auf > 70 Lux) ██",
+        puzzleLightMatch: "Licht-Gleichung: 7 x 8 = ?",
+        answers: ["56"],
+        hint: "7 mal 8 im kleinen Einmaleins."
+      },
+      {
+        id: 8, title: "Der Aktenstapel", category: "Logik", difficulty: "Leicht",
+        story: "<strong class='text-luxaNormal'>Assistentin:</strong> 'Es gab 4 Aktenordner mit je 12 Beweisblättern. 10 Blätter wurden vernichtet. Wie viele bleiben?'",
+        puzzleNormal: "(4 x 12) - 10 = ?",
+        puzzleLightMatch: "(4 x 12) - 10 = ?",
+        answers: ["38"],
+        hint: "Rechne zuerst 4 mal 12 (48) und ziehe dann 10 ab."
+      },
+      {
+        id: 9, title: "Das Spiegel-Skript", category: "Wort-Umkehr", difficulty: "Leicht", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Lies die spiegelverkehrte UV-Schrift unter Schwarzlicht (< 30 Lux)!'",
+        puzzleNormal: "░░ DUNKELHEIT NÖTIG ░░",
+        puzzleLightMatch: "Spiegelwort: <strong>K C I L B</strong>",
+        answers: ["BLICK"],
+        hint: "Lies die Buchstaben von rechts nach links."
+      },
+      {
+        id: 10, title: "Die Quadrat-Treppe", category: "Quadratzahlen", difficulty: "Mittel",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Die Zahlenfolge nutzt Quadratzahlen: 1, 4, 9, 16, 25, ...'",
+        puzzleNormal: "1 - 4 - 9 - 16 - 25 - ?",
+        puzzleLightMatch: "1 - 4 - 9 - 16 - 25 - ?",
+        answers: ["36"],
+        hint: "Die nächste Zahl ist 6 mal 6."
+      },
+      {
+        id: 11, title: "Das Solarpaneel", category: "Gleichung", difficulty: "Mittel", requiredLight: "BRIGHT",
+        story: "<strong class='text-luxaBright'>Bergmann:</strong> 'Aktiviere das Solarpaneel bei voller Belichtung (> 70 Lux)!'",
+        puzzleNormal: "██ INAKTIV (Licht steigern auf > 70 Lux) ██",
+        puzzleLightMatch: "Gleichung: 4x - 8 = 32  => x = ?",
+        answers: ["10"],
+        hint: "Addiere 8 auf beiden Seiten (4x = 40) und teile durch 4."
+      },
+      {
+        id: 12, title: "Der Alphabet-Code", category: "Zahlen-Code", difficulty: "Mittel",
+        story: "<strong class='text-luxaNormal'>Assistentin:</strong> 'Wenn A=1, B=2, C=3... Welchen Gesamtwert hat das Wort <strong>L U X</strong>?'",
+        puzzleNormal: "L(12) + U(21) + X(24) = ?",
+        puzzleLightMatch: "L(12) + U(21) + X(24) = ?",
+        answers: ["57"],
+        hint: "Addiere die drei Zahlen: 12 + 21 + 24."
+      },
+      {
+        id: 13, title: "Die Fibonacci-Reihe", category: "Logik & UV", difficulty: "Mittel", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Unter UV-Licht (< 30 Lux) erscheint die Reihe: 1, 1, 2, 3, 5, 8, 13, ...'",
+        puzzleNormal: "░░ SCHWARZLICHT ERFORDERLICH ░░",
+        puzzleLightMatch: "1 - 1 - 2 - 3 - 5 - 8 - 13 - ?",
+        answers: ["21"],
+        hint: "Addiere immer die letzten beiden Zahlen zusammen (8 + 13)."
+      },
+      {
+        id: 14, title: "Der Täter-Hinweis", category: "Logik-Ausschluss", difficulty: "Mittel",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Der Täter trug keine rote Jacke und keinen blauen Hut. Der Schlüssel lag auf dem grünen Tisch. Welches Farbwort ist gesucht?'",
+        puzzleNormal: "Tischfarbe gesucht (Englisch oder Deutsch)",
+        puzzleLightMatch: "Tischfarbe = ?",
+        answers: ["GRUEN", "GRÜN", "GREEN"],
+        hint: "Im Text steht direkt, auf welchem Tisch der Schlüssel lag."
+      },
+      {
+        id: 15, title: "Das Kodierte Anagramm", category: "Anagramm", difficulty: "Mittel", requiredLight: "BRIGHT",
+        story: "<strong class='text-luxaBright'>Bergmann:</strong> 'Durchleuchte den Filmstreifen bei voller Helligkeit (> 70 Lux)!'",
+        puzzleNormal: "██ FILM UNLESBAR (>70 Lux einstellen) ██",
+        puzzleLightMatch: "Anagramm: <strong>S C H L U E S S E L</strong>",
+        answers: ["SCHLUESSEL", "SCHLÜSSEL"],
+        hint: "Ordne die Buchstaben so, dass das Wort entsteht, mit dem man Schlösser öffnet."
+      },
+      {
+        id: 16, title: "Wechsel-Schrittfolge", category: "Sequenz", difficulty: "Mittel",
+        story: "<strong class='text-luxaNormal'>Assistentin:</strong> 'Die Schrittfolge wechselt (+3, +2, +3, +2): 2, 5, 7, 10, 12, 15, ...'",
+        puzzleNormal: "2 - 5 - 7 - 10 - 12 - 15 - ?",
+        puzzleLightMatch: "2 - 5 - 7 - 10 - 12 - 15 - ?",
+        answers: ["17"],
+        hint: "Nach dem letzten +3 kam ein +2 Schritt. Was kommt als Nächstes?"
+      },
+      {
+        id: 17, title: "Die Tresor-Waage", category: "Logik", difficulty: "Mittel",
+        story: "<strong class='text-luxaBright'>Bergmann:</strong> '2 Medaillons wiegen so viel wie 1 Goldbarren. 4 Goldbarren wiegen 800 Gramm. Wie viel wiegt 1 Medaillon?'",
+        puzzleNormal: "4 Barren = 800g | 1 Medaillon = ?",
+        puzzleLightMatch: "1 Medaillon = ? Gramm",
+        answers: ["100", "100G"],
+        hint: "1 Barren wiegt 200g. Ein Medaillon ist genau die Hälfte davon."
+      },
+      {
+        id: 18, title: "Fluchtweg-Berechnung", category: "Tempo", difficulty: "Fortgeschritten",
+        story: "<strong class='text-luxaNormal'>Assistentin:</strong> 'Der Verdächtige floh über 180 Meter mit 6 m/s. Wie viele Sekunden benötigte er?'",
+        puzzleNormal: "180m / 6m/s = ? Sek",
+        puzzleLightMatch: "180m / 6m/s = ? Sek",
+        answers: ["30"],
+        hint: "Teile 180 durch 6."
+      },
+      {
+        id: 19, title: "Das Rückwärts-Alphabet", category: "UV-Buchstaben", difficulty: "Fortgeschritten", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Unter UV-Licht (< 30 Lux) erscheint das Rückwärts-Alphabet mit 3er-Sprüngen: Z, W, T, Q, ...'",
+        puzzleNormal: "░░ VERSTECKTE UV-MARKIERUNG ░░",
+        puzzleLightMatch: "Z - W - T - Q - ?",
+        answers: ["N"],
+        hint: "Gehe im Alphabet immer 3 Schritte rückwärts (Q minus 3)."
+      },
+      {
+        id: 20, title: "Das Rätselhafte Alter", category: "Gleichung", difficulty: "Fortgeschritten",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Kommissar Bergmann ist dreimal so alt wie die Zeugin. Zusammen sind sie 60 Jahre alt. Wie alt ist die Zeugin?'",
+        puzzleNormal: "3x + x = 60  =>  x = ?",
+        puzzleLightMatch: "Zeugin Alter = ?",
+        answers: ["15"],
+        hint: "Das sind insgesamt 4 Teile (3+1). Teile 60 durch 4."
+      },
+      {
+        id: 21, title: "Die Primzahl-Sperre", category: "Primzahlen", difficulty: "Fortgeschritten", requiredLight: "BRIGHT",
+        story: "<strong class='text-luxaBright'>Bergmann:</strong> 'Aktiviere das Licht-Relais (> 70 Lux): 11, 13, 17, 19, 23, ...'",
+        puzzleNormal: "██ SENSOR BLIND (>70 Lux einstellen) ██",
+        puzzleLightMatch: "11 - 13 - 17 - 19 - 23 - ?",
+        answers: ["29"],
+        hint: "Gesucht ist die nächste Primzahl nach 23 (durch sich selbst und 1 teilbar)."
+      },
+      {
+        id: 22, title: "Der Archiv-Akte-Code", category: "Quersumme", difficulty: "Fortgeschritten",
+        story: "<strong class='text-luxaNormal'>Assistentin:</strong> 'Der Code entspricht der Quersumme aus 9876.'",
+        puzzleNormal: "Quersumme von 9 + 8 + 7 + 6 = ?",
+        puzzleLightMatch: "9 + 8 + 7 + 6 = ?",
+        answers: ["30"],
+        hint: "Addiere alle vier Ziffern einzeln zusammen."
+      },
+      {
+        id: 23, title: "Der Frequenz-Scanner", category: "Multiplikation", difficulty: "Knifflig", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Lies im UV-Modus (< 30 Lux) ab: 2, 6, 18, 54, ...'",
+        puzzleNormal: "░░ SCANNER BENÖTIGT UV-MODUS ░░",
+        puzzleLightMatch: "2 - 6 - 18 - 54 - ?",
+        answers: ["162"],
+        hint: "Jede Zahl wird mit 3 multipliziert (54 mal 3)."
+      },
+      {
+        id: 24, title: "Das Binäre Schaltsystem", category: "Binärzahlen", difficulty: "Knifflig",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Wandle die Binärzahl <strong>10101</strong> in das Dezimalsystem um!'",
+        puzzleNormal: "Binär 10101 = Dezimal ?",
+        puzzleLightMatch: "Binär 10101 = Dezimal ?",
+        answers: ["21"],
+        hint: "Das sind die Werte 16 + 4 + 1."
+      },
+      {
+        id: 25, title: "Das Farb-Spektrum", category: "Spektrum", difficulty: "Knifflig", requiredLight: "BRIGHT",
+        story: "<strong class='text-luxaBright'>Bergmann:</strong> 'Bei maximalem Licht (> 70 Lux) zeigt das Prisma das Wort: <strong>L U M E N</strong>'",
+        puzzleNormal: "██ PRISMA BRAUCHT HELLIGKEIT (>70 Lux) ██",
+        puzzleLightMatch: "Passwort im Lichtspektrum?",
+        answers: ["LUMEN"],
+        hint: "Schreibe die Buchstaben L-U-M-E-N zusammen."
+      },
+      {
+        id: 26, title: "Die Prozent-Falle", category: "Prozent", difficulty: "Knifflig",
+        story: "<strong class='text-luxaNormal'>Assistentin:</strong> 'Ein Safe von 500 € wurde um 20% reduziert und danach um 10% erhöht. Wie viel kostet er jetzt?'",
+        puzzleNormal: "500€ - 20% = 400€ | 400€ + 10% = ?",
+        puzzleLightMatch: "Endpreis = ? €",
+        answers: ["440", "440€"],
+        hint: "10% von 400€ sind 40€. Rechne 400 plus 40."
+      },
+      {
+        id: 27, title: "Das Dreiecks-Raster", category: "UV-Muster", difficulty: "Experte", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann:</strong> 'Unter Schwarzlicht (< 30 Lux): 1, 3, 6, 10, 15, 21, ...'",
+        puzzleNormal: "░░ UV-LICHT EINSTELLEN ░░",
+        puzzleLightMatch: "1 - 3 - 6 - 10 - 15 - 21 - ?",
+        answers: ["28"],
+        hint: "Die Abstände wachsen immer um +1 (+2, +3, +4, +5, +6, +7). Nach 21 addierst du 7."
+      },
+      {
+        id: 28, title: "Das Zwei-Variablen-Schloss", category: "Gleichung", difficulty: "Experte",
+        story: "<strong class='text-luxaBright'>Assistentin:</strong> 'Löse das Schloss: A + B = 20 und A - B = 6. Wie groß ist A?'",
+        puzzleNormal: "A + B = 20 | A - B = 6  => A = ?",
+        puzzleLightMatch: "Wert von A = ?",
+        answers: ["13"],
+        hint: "Addiere beide Gleichungen: 2A = 26."
+      },
+      {
+        id: 29, title: "Das Haupt-Anagramm", category: "Luxa Master", difficulty: "Experte", requiredLight: "BRIGHT",
+        story: "<strong class='text-luxaBright'>Bergmann:</strong> 'Setze die Überbelichtung (> 70 Lux) für den letzten Code ein!'",
+        puzzleNormal: "██ ÜBERBELICHTUNG NÖTIG (>70 Lux) ██",
+        puzzleLightMatch: "Anagramm: <strong>L U X A P R O T O K O L L</strong>",
+        answers: ["LUXAPROTOKOLL", "LUXA-PROTOKOLL"],
+        hint: "Es ist der Name unseres aktuellen Falls (zwei Wörter zusammengeschrieben)."
+      },
+      {
+        id: 30, title: "Der Panzerschrank des Archivars", category: "Finale", difficulty: "Finale", requiredLight: "DARK",
+        story: "<strong class='text-luxaNormal'>Bergmann & Assistentin:</strong> 'Das Finale! Schalte auf <strong>UV-Schwarzlicht (< 30 Lux)</strong> und berechne die Summe aus den Antworten von Kapitel 1 (25), Kapitel 5 (3) und Kapitel 12 (57)!'",
+        puzzleNormal: "░░ SCHALTUNG NUR IM UV-SCHWARZLICHT MÖGLICH! ░░",
+        puzzleLightMatch: "25 + 3 + 57 = ?",
+        answers: ["85"],
+        hint: "Rechne 25 + 3 + 57."
+      }
+    ];
+
+    /* ==========================================
+        GAME STATE & SCORING SYSTEM
+        ========================================== */
+    let currentChIndex = 0;
+    let currentLux = 50;
+    let currentLuxaMode = 'NORMAL';
+    let solvedChapters = new Set();
+    let chapterScores = {}; // Speichert Punkte pro Kapitel
+    let currentChapterScore = 100;
+    let wrongAttempts = 0;
+    let hintUsed = false;
+    let audioEnabled = true;
+    let audioCtx = null;
+    let cameraActive = false;
+    let camInterval = null;
+
+    try {
+      const savedProg = localStorage.getItem('luxa_game_progress');
+      if (savedProg) solvedChapters = new Set(JSON.parse(savedProg));
+      const savedScores = localStorage.getItem('luxa_game_scores');
+      if (savedScores) chapterScores = JSON.parse(savedScores);
+    } catch(e) {}
+
+    function updateLuxFromSlider(val) {
+      currentLux = parseInt(val, 10);
+      document.getElementById('luxValueDisplay').innerText = `${currentLux} Lux`;
+      evaluateLuxaMode();
+    }
+
+    function evaluateLuxaMode() {
+      const modeText = document.getElementById('luxaModeText');
+      const modeBadge = document.getElementById('luxaModeBadge');
+      const inspectLabel = document.getElementById('inspectModeLabel');
+      const mainCard = document.getElementById('mainCard');
+      const headerIcon = document.getElementById('luxaHeaderIcon');
+
+      if (currentLux < 30) {
+        currentLuxaMode = 'DARK';
+        modeText.innerText = `UV-SCHWARZLICHT (${currentLux} Lux)`;
+        modeBadge.className = "px-3 py-1 rounded-full text-xs font-mono font-bold bg-purple-950 border border-purple-500 text-purple-300 flex items-center gap-1.5 shadow-[0_0_10px_rgba(168,85,247,0.4)]";
+        inspectLabel.innerText = "UV-SCHWARZLICHT (AKTIV)";
+        inspectLabel.className = "text-luxaUv font-bold animate-pulse";
+        mainCard.className = "bg-noir-800 border rounded-2xl p-5 sm:p-8 shadow-2xl relative space-y-6 transition-all duration-500 uv-glow";
+        headerIcon.className = "fa-solid fa-moon text-xl text-luxaUv";
+      } else if (currentLux > 70) {
+        currentLuxaMode = 'BRIGHT';
+        modeText.innerText = `ÜBERBELICHTUNG (${currentLux} Lux)`;
+        modeBadge.className = "px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-950 border border-amber-500 text-amber-300 flex items-center gap-1.5 shadow-[0_0_10px_rgba(251,191,36,0.4)]";
+        inspectLabel.innerText = "HELLIGKEITS-SCAN (AKTIV)";
+        inspectLabel.className = "text-luxaBright font-bold animate-pulse";
+        mainCard.className = "bg-noir-800 border rounded-2xl p-5 sm:p-8 shadow-2xl relative space-y-6 transition-all duration-500 bright-glow";
+        headerIcon.className = "fa-solid fa-sun text-xl text-luxaBright";
+      } else {
+        currentLuxaMode = 'NORMAL';
+        modeText.innerText = `NORMAL-LICHT (${currentLux} Lux)`;
+        modeBadge.className = "px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 border border-slate-600 text-cyan-400 flex items-center gap-1.5";
+        inspectLabel.innerText = "NORMAL-LICHT";
+        inspectLabel.className = "text-luxaNormal font-bold";
+        mainCard.className = "bg-noir-800 border border-noir-700 rounded-2xl p-5 sm:p-8 shadow-2xl relative space-y-6 transition-all duration-500";
+        headerIcon.className = "fa-solid fa-microscope text-xl text-luxaNormal";
+      }
+      renderPuzzleContent();
+    }
+
+    async function toggleCamera() {
+      const camBtn = document.getElementById('camBtn');
+      if (cameraActive) {
+        stopCamera();
+        camBtn.classList.remove('bg-emerald-900', 'text-emerald-300');
+        camBtn.classList.add('bg-noir-700', 'text-gray-300');
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        const video = document.getElementById('webcamVideo');
+        video.srcObject = stream;
+        cameraActive = true;
+        camBtn.classList.remove('bg-noir-700', 'text-gray-300');
+        camBtn.classList.add('bg-emerald-900', 'text-emerald-300');
+        camInterval = setInterval(sampleWebcamLight, 600);
+      } catch (err) {
+        alert("Kamera-Zugriff fehlgeschlagen.");
+      }
+    }
+
+    function stopCamera() {
+      cameraActive = false;
+      if (camInterval) clearInterval(camInterval);
+      const video = document.getElementById('webcamVideo');
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(t => t.stop());
+        video.srcObject = null;
+      }
+    }
+
+    function sampleWebcamLight() {
+      if (!cameraActive) return;
+      const video = document.getElementById('webcamVideo');
+      const canvas = document.getElementById('webcamCanvas');
+      const ctx = canvas.getContext('2d');
+      try {
+        ctx.drawImage(video, 0, 0, 32, 32);
+        const frame = ctx.getImageData(0, 0, 32, 32);
+        let totalBrightness = 0;
+        for (let i = 0; i < frame.data.length; i += 4) {
+          totalBrightness += (0.299 * frame.data[i] + 0.587 * frame.data[i+1] + 0.114 * frame.data[i+2]);
+        }
+        currentLux = Math.round((totalBrightness / (32 * 32) / 255) * 100);
+        document.getElementById('luxaSlider').value = currentLux;
+        document.getElementById('luxValueDisplay').innerText = `${currentLux} Lux`;
+        evaluateLuxaMode();
+      } catch(e) {}
+    }
+
+    function toggleAudio() {
+      audioEnabled = !audioEnabled;
+      document.getElementById('audioIcon').className = audioEnabled ? "fa-solid fa-volume-high text-luxaNormal" : "fa-solid fa-volume-xmark text-gray-500";
+    }
+
+    function playSound(type) {
+      if (!audioEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+        if (type === 'success') {
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.setValueAtTime(880, now + 0.1);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        } else if (type === 'error') {
+          osc.frequency.setValueAtTime(150, now);
+          osc.frequency.setValueAtTime(100, now + 0.15);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        }
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } catch(e) {}
+    }
+
+    function loadChapter(index) {
+      currentChIndex = index;
+      const ch = chapters[index];
+      
+      // Kapitel-Score initialisieren, falls noch nicht gelöst
+      if (!chapterScores[ch.id]) {
+        currentChapterScore = 100;
+      } else {
+        currentChapterScore = chapterScores[ch.id];
+      }
+      wrongAttempts = 0;
+      hintUsed = false;
+
+      document.getElementById('headerChapterText').innerText = `Entwickelt von Blankenhagen Spieleentwicklung`;
+      document.getElementById('chapterBadge').innerText = `K${ch.id} / 30`;
+      document.getElementById('chapterCategory').innerText = ch.category;
+      document.getElementById('chapterTitle').innerText = `Kapitel ${ch.id}: ${ch.title}`;
+      document.getElementById('difficultyTag').innerText = ch.difficulty;
+      document.getElementById('storyBox').innerHTML = ch.story;
+      document.getElementById('userInput').value = "";
+      document.getElementById('feedbackText').classList.add('hidden');
+      document.getElementById('hintBox').classList.add('hidden');
+      document.getElementById('hintBtnText').innerText = "Hilfreichen Tipp anfordern (-25 Pkt)";
+
+      updateScoreDisplay();
+
+      const notice = document.getElementById('lightReqNotice');
+      if (ch.requiredLight) {
+        notice.classList.remove('hidden');
+        document.getElementById('lightReqText').innerText = ch.requiredLight === 'DARK' 
+          ? "Luxa-Erfordernis: Benötigt UV-Schwarzlicht (< 30 Lux)!" 
+          : "Luxa-Erfordernis: Benötigt Überbelichtung (> 70 Lux)!";
+      } else {
+        notice.classList.add('hidden');
+      }
+
+      renderPuzzleContent();
+      updateProgress();
+    }
+
+    function renderPuzzleContent() {
+      const ch = chapters[currentChIndex];
+      const pDisplay = document.getElementById('puzzleDisplay');
+      
+      let unlocked = true;
+      if (ch.requiredLight === 'DARK' && currentLuxaMode !== 'DARK') unlocked = false;
+      if (ch.requiredLight === 'BRIGHT' && currentLuxaMode !== 'BRIGHT') unlocked = false;
+
+      if (unlocked) {
+        pDisplay.innerHTML = ch.puzzleLightMatch;
+        pDisplay.className = "text-lg sm:text-xl font-mono font-bold tracking-wider py-4 transition-all duration-300 min-h-[70px] flex items-center justify-center text-luxaNormal";
+      } else {
+        pDisplay.innerHTML = ch.puzzleNormal;
+        pDisplay.className = "text-sm sm:text-base font-mono font-bold tracking-wider py-4 transition-all duration-300 min-h-[70px] flex items-center justify-center text-gray-500 animate-pulse";
+      }
+    }
+
+    function submitAnswer() {
+      const ch = chapters[currentChIndex];
+      const inputVal = document.getElementById('userInput').value.trim().toUpperCase();
+      const feedback = document.getElementById('feedbackText');
+
+      if (!inputVal) return;
+
+      let unlocked = true;
+      if (ch.requiredLight === 'DARK' && currentLuxaMode !== 'DARK') unlocked = false;
+      if (ch.requiredLight === 'BRIGHT' && currentLuxaMode !== 'BRIGHT') unlocked = false;
+
+      if (!unlocked) {
+        feedback.innerText = "Lichtbedingung nicht erfüllt!";
+        feedback.className = "text-xs font-mono font-bold text-amber-400";
+        feedback.classList.remove('hidden');
+        playSound('error');
+        return;
+      }
+
+      const isCorrect = ch.answers.some(ans => ans.toUpperCase() === inputVal);
+      if (isCorrect) {
+        playSound('success');
+        feedback.innerText = `Korrekt! +${currentChapterScore} Punkte gesichert.`;
+        feedback.className = "text-xs font-mono font-bold text-emerald-400";
+        feedback.classList.remove('hidden');
+        
+        solvedChapters.add(ch.id);
+        chapterScores[ch.id] = Math.max(currentChapterScore, chapterScores[ch.id] || 0);
+        saveProgress();
+
+        setTimeout(() => {
+          if (currentChIndex < chapters.length - 1) {
+            loadChapter(currentChIndex + 1);
+          } else {
+            alert("Glückwunsch, Jörg! Alle 30 Kapitel erfolgreich gelöst!");
+            toggleChapterMenu();
+          }
+        }, 900);
+      } else {
+        playSound('error');
+        wrongAttempts++;
+        currentChapterScore = Math.max(10, currentChapterScore - 10); // 10 Punkte Abzug pro Fehlversuch (Minimum 10)
+        updateScoreDisplay();
+
+        feedback.innerText = `Falscher Code! (-10 Pkt)`;
+        feedback.className = "text-xs font-mono font-bold text-red-400";
+        feedback.classList.remove('hidden');
+      }
+    }
+
+    function showHint() {
+      const hintBox = document.getElementById('hintBox');
+      if (hintBox.classList.contains('hidden')) {
+        if (!hintUsed && !solvedChapters.has(chapters[currentChIndex].id)) {
+          hintUsed = true;
+          currentChapterScore = Math.max(10, currentChapterScore - 25); // 25 Punkte Abzug für Tipp
+          updateScoreDisplay();
+        }
+        hintBox.innerText = "💡 Tipp: " + chapters[currentChIndex].hint;
+        hintBox.classList.remove('hidden');
+        document.getElementById('hintBtnText').innerText = "Tipp ausblenden";
+      } else {
+        hintBox.classList.add('hidden');
+        document.getElementById('hintBtnText').innerText = "Hilfreichen Tipp anfordern (-25 Pkt)";
+      }
+      playSound('click');
+    }
+
+    function updateScoreDisplay() {
+      document.getElementById('currentChapterScore').innerText = `Kapitel-Wert: ${currentChapterScore} Pkt`;
+      
+      // Gesamtpunktzahl berechnen
+      let total = 0;
+      for (let id in chapterScores) {
+        total += chapterScores[id];
+      }
+      document.getElementById('totalScoreDisplay').innerText = `${total} Pkt`;
+    }
+
+    function updateProgress() {
+      const pct = Math.round((solvedChapters.size / chapters.length) * 100);
+      document.getElementById('progressPctText').innerText = `${pct}% Gelöst`;
+      document.getElementById('progressBar').style.width = `${Math.max(pct, 3)}%`;
+      updateScoreDisplay();
+    }
+
+    function saveProgress() {
+      try {
+        localStorage.setItem('luxa_game_progress', JSON.stringify(Array.from(solvedChapters)));
+        localStorage.setItem('luxa_game_scores', JSON.stringify(chapterScores));
+      } catch(e) {}
+    }
+
+    function toggleChapterMenu() {
+      const modal = document.getElementById('chapterModal');
+      modal.classList.toggle('hidden');
+      if (!modal.classList.contains('hidden')) buildChapterGrid();
+      playSound('click');
+    }
+
+    function toggleRulesModal() {
+      document.getElementById('rulesModal').classList.toggle('hidden');
+      playSound('click');
+    }
+
+    function toggleImpressumModal() {
+      document.getElementById('impressumModal').classList.toggle('hidden');
+      playSound('click');
+    }
+
+    function buildChapterGrid() {
+      const grid = document.getElementById('chapterGrid');
+      grid.innerHTML = "";
+      chapters.forEach((ch, idx) => {
+        const isSolved = solvedChapters.has(ch.id);
+        const isCurrent = idx === currentChIndex;
+        
+        let btnClass = "aspect-square rounded-xl font-mono text-xs font-bold flex flex-col items-center justify-center transition border ";
+        if (isCurrent) {
+          btnClass += "bg-cyan-950 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(56,189,248,0.4)]";
+        } else if (isSolved) {
+          btnClass += "bg-emerald-950/70 border-emerald-500/60 text-emerald-300";
+        } else {
+          btnClass += "bg-noir-900 border-noir-700 text-gray-400 hover:border-gray-500";
+        }
+
+        const btn = document.createElement('button');
+        btn.className = btnClass;
+        btn.innerHTML = `<span>K${ch.id}</span>${isSolved && chapterScores[ch.id] ? `<span class='text-[9px] text-amber-300 font-normal'>${chapterScores[ch.id]}p</span>` : ''}`;
+        btn.onclick = () => {
+          loadChapter(idx);
+          toggleChapterMenu();
+        };
+        grid.appendChild(btn);
+      });
+    }
+
+    // Init
+    loadChapter(0);
+  </script>
+</body>
+</html>
